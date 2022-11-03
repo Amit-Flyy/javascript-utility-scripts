@@ -30,6 +30,7 @@ var thisObj = {
     'sarvm': 22
   }
 
+
 function getObjKey(obj, value) {
     return Object.keys(obj).find(key => obj[key] === value);
 }
@@ -39,9 +40,10 @@ function set_line_item_vals(obj, i, listval, def = true) {
     obj[`line_items[entity_type][${i}]`]= listval[1]
     obj[`line_items[entity_id][${i}]`]=listval[2], 
     obj[`line_items[description][${i}]`]=listval[3], 
-    obj[`line_items[date_from][${i}]`] = listval[4];
+    obj[`line_items[date_from][${i}]`] = '';
     obj[`line_items[date_to][${i}]`] = listval[5];
     obj[`line_items[quantity][${i}]`]=listval[6],
+    obj[`line_items[unit_amount][${i}]`]="",
     obj[`line_items[amount][${i}]`]=listval[7]
 }
 
@@ -72,7 +74,7 @@ const objectToCsv = function (data) {
     return csvRows.join('\n');
 };
 
-fs.readFile((process.env.FILE || "users")+'.json', 'utf-8', async (err, data) => {
+fs.readFile((process.env.FILE || "users")+'.JSON', 'utf-8', async (err, data) => {
     sls = await JSON.parse(data.toString());
     // console.log(sls);
     sls.forEach(row => {
@@ -145,7 +147,23 @@ fs.readFile((process.env.FILE || "users")+'.json', 'utf-8', async (err, data) =>
         main_arr.push(csv_obj)      
     });
     // console.log({main_arr});
-    main_arr.sort((a,b) => (thisObj[a.name] > thisObj[b.name] ? 1 : -1))
+    main_arr.sort((a,b) => (thisObj[a.name] != thisObj[b.name]) ? (thisObj[a.name] > thisObj[b.name] ? 1 : -1) : (a['line_items[id][0]'] > b['line_items[id][0]']? 1 : -1))
+    var date_idx = 2
+    for (let inv_n = 0; inv_n < main_arr.length; inv_n++) {
+        const inv = main_arr[inv_n];
+        var ob_keys = Object.keys(inv);
+        for (let idx = 0; idx < ob_keys.length; idx++) {
+            const ob_key = ob_keys[idx];
+            if (ob_key.includes('date')) {
+                if (ob_key.includes('date_from')) {
+                    inv[ob_key] = `=IF(ISBLANK(INDIRECT(ADDRESS(ROW(),COLUMN()-1))), , IF(DAYS(EOMONTH(F${date_idx}, 0), F${date_idx}) > 15, EOMONTH(F${date_idx}, -2) + 1, EOMONTH(F${date_idx}, 0) + 1))`
+                } else if (ob_key.includes('date_to')) {
+                    inv[ob_key] = "=IF(ISBLANK(INDIRECT(ADDRESS(ROW(),COLUMN()-2))), '', EOMONTH(INDIRECT(ADDRESS(ROW(),COLUMN()-1)), 0))"
+                }
+            }
+        }
+        date_idx += 1
+    }
     main_arr.forEach(obj => console.log(obj.name))
     var dataToWrite = objectToCsv(main_arr)
     fs.writeFile('new_test.csv', dataToWrite, 'utf8', function (err) {

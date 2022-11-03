@@ -34,7 +34,7 @@ var thisObj = {
 }
 
 var inv_count = {
-  'medcords' :	23,  'mintpro' :	22,  'momspresso' :	21,  'taxbuddy' :	31,  'stucred' :	20,  
+  'medcords' :	23,  'mintpro' :	23,  'momspresso' :	21,  'taxbuddy' :	31,  'stucred' :	20,  
   'hirehunch' :	15,  'oto' :	13,  'cashe' :	12,  'avail' :	12,  'pharmarack' :	14,  'mypaisaa' :	11,  
   'monexo' :	10,  'jiffy' :	9,  'flipit_news' :	8,  'rigi_club' :	7,  'kotak_securities' :	8,  
   'kotak_bank' :	6,  'finovate_prod_account' :	5,  'wobb_prod' :	4,  'drink_prime_prod' :	3,  
@@ -99,13 +99,16 @@ async function get_subscription_data(req, customerID, ) {
               for (let idx = 0; idx < subscription.subscription_items.length; idx++) {
                 const item = subscription.subscription_items[idx];
                 item.price = item.metered_quantity ? stairstep_price_calculation([item], item.metered_quantity, subscription.item_tiers) : 0;
-                console.log(item);
+                // console.log(item);
               }
               line_item_row.details= {"subscription_addons" : subscription.subscription_items};
               new_row.details = {"subscription_items" : subscription.subscription_items};
               // new_row.items = subscription.subscription_items
               // console.log(new_row);
-              pricing_tiers.push(new_row)
+              for (let inv_num = 0; inv_num < inv_count[customerID]; inv_num++) {
+                pricing_tiers.push(new_row)
+                // console.log(pricing_tiers.length);
+              }
               line_items.push(line_item_row)
 
               resolve({});
@@ -211,6 +214,7 @@ for (let customer = 0; customer < custids.length; customer++) {
                   if (err) {
                       throw err
                   }
+                  console.log(data);
                   console.log('JSON data is saved.')
                 })
                 var line_item_data = JSON.stringify(line_items)
