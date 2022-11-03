@@ -1,16 +1,52 @@
 var fs = require('fs');
 var pricing_tiers = [];
+var line_items = []
 CHARGEBEE_API_KEY="live_F2Ahqr8TjzuDTibBhnlHciCMGdl84IXz"
 CHARGEBEESITE="theflyy"
 var chargebee = require("chargebee");
 
 chargebee.configure({ site: CHARGEBEESITE, api_key: CHARGEBEE_API_KEY });
 
+var thisObj = {
+  'medcords': 0,
+  'mintpro': 1,
+  'momspresso': 2,
+  'taxbuddy': 3,
+  'stucred': 4,
+  'hirehunch': 5,
+  'oto': 6,
+  'cashe': 7,
+  'avail': 8,
+  'pharmarack': 9,
+  'mypaisaa': 10,
+  'monexo': 11,
+  'jiffy': 12,
+  'flipit_news': 13,
+  'rigi_club': 14,
+  'kotak_securities': 15,
+  'kotak_bank': 16,
+  'finovate_prod_account': 17,
+  'wobb_prod': 18,
+  'drink_prime_prod': 19,
+  'my_medi_sage': 20,
+  'woovly': 21,
+  'sarvm': 22
+}
+
+var inv_count = {
+  'medcords' :	23,  'mintpro' :	22,  'momspresso' :	21,  'taxbuddy' :	31,  'stucred' :	20,  
+  'hirehunch' :	15,  'oto' :	13,  'cashe' :	12,  'avail' :	12,  'pharmarack' :	14,  'mypaisaa' :	11,  
+  'monexo' :	10,  'jiffy' :	9,  'flipit_news' :	8,  'rigi_club' :	7,  'kotak_securities' :	8,  
+  'kotak_bank' :	6,  'finovate_prod_account' :	5,  'wobb_prod' :	4,  'drink_prime_prod' :	3,  
+  'my_medi_sage' :	3,  'woovly' :	1,  'sarvm' :	1,
+}
+
 async function get_subscription_data(req, customerID, ) {
     return new Promise(async (resolve, reject) => {
       {
-        var new_row = {}
+        var new_row = {}, line_item_row = {};
         new_row.name = customerID;
+        line_item_row.name = customerID;
         // console.log({customerPayTerms});
         chargebee.subscription
           .list({
@@ -25,25 +61,7 @@ async function get_subscription_data(req, customerID, ) {
               let message = error ? "Error retrieveing customer data" : "You have no subscription"
               // res.send({success: false, message: error});
               // console.log(result.list);
-              subscription_details = {
-                subscription_id: "",
-                subscription_status: "",
-                subscription_name: "",
-                startdate: "", // try adding real date
-                enddate: "", // try adding real date
-
-                activated_at: '',
-            
-                subscription_item_price: 'no subscription present',
-                subscription_meta_data : {block_dashboard: "true", cb_meta_data_message: "You don't have any active subscriptions", cb_trial_state: "0"},
-                price: "",
-                currency: "",
-                subscription_addons: [],
-                subscription_level: 0,
-                modules_subscribed: "",
-                message
-                
-              };
+              subscription_details = {};
               reject({subscription_details});
               // res.send({success: false, message: "subscription data couldn't be fetched", subscription_details});
             } else {
@@ -77,9 +95,18 @@ async function get_subscription_data(req, customerID, ) {
               // console.log({item_to_mq});
               new_row['items_with_mq'] = item_to_mq
               new_row.item_tiers = subscription.item_tiers;
+              // line_item_row.details = {}
+              for (let idx = 0; idx < subscription.subscription_items.length; idx++) {
+                const item = subscription.subscription_items[idx];
+                item.price = item.metered_quantity ? stairstep_price_calculation([item], item.metered_quantity, subscription.item_tiers) : 0;
+                console.log(item);
+              }
+              line_item_row.details= {"subscription_addons" : subscription.subscription_items};
+              new_row.details = {"subscription_items" : subscription.subscription_items};
               // new_row.items = subscription.subscription_items
               // console.log(new_row);
               pricing_tiers.push(new_row)
+              line_items.push(line_item_row)
 
               resolve({});
             }
@@ -123,6 +150,7 @@ if (sub_items.length != 0 && sub_item_tiers){
             }
             item_sub.price = tier.price;
             price += item_sub.price;
+            return item_sub.price;
             // console.log("Main hu Addon: ", addon);
 
             // console.log("15451", {index, item_tier, level, metered_quantity});
@@ -158,7 +186,7 @@ if (sub_items.length != 0 && sub_item_tiers){
     }
 }
 // console.log({sub_items, price, level, metered_quantity} );
-return {price, level}
+return price;
 
 }
   
@@ -175,13 +203,22 @@ for (let customer = 0; customer < custids.length; customer++) {
             if (d == 23) {
                 
                 // console.log(pricing_tiers);
+                pricing_tiers.sort((a,b) => (thisObj[a.name] > thisObj[b.name] ? 1 : -1))
+                pricing_tiers.forEach(obj => console.log(obj.name))
                 var data = JSON.stringify(pricing_tiers)
                 // write JSON string to a file
-                fs.writeFile('user.JSON', data, err => {
-                if (err) {
-                    throw err
-                }
-                console.log('JSON data is saved.')
+                fs.writeFile('users.JSON', data, err => {
+                  if (err) {
+                      throw err
+                  }
+                  console.log('JSON data is saved.')
+                })
+                var line_item_data = JSON.stringify(line_items)
+                fs.writeFile('file.JSON', line_item_data, err => {
+                  if (err) {
+                      throw err
+                  }
+                  console.log('JSON data is saved.')
                 })
             }
         })

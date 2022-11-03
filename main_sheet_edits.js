@@ -3,31 +3,39 @@ var fs = require('fs');
 
 var args = process.argv;
 var type = args[2] || 'text';
-var arr = []; 
+var ans_arr = []; 
 var bufferString; 
 
 function csvHandler(){
-  fs.readFile('sample.csv',function (err,data) {
+  fs.readFile('new_test.csv',function (err,data) {
 
-  if (err) {
-    // return console.log(err);
-  }
+    if (err) {
+      return console.log(err);
+    }
+    bufferString = data.toString(); 
+    ans_arr = bufferString.split('\n'); 
+    var ans_keys = ans_arr[0].split(',');
+    // console.log('---->', ans_arr.length);
+    ans_arr = ans_arr.slice(1, ans_arr.length);
+    // console.log(ans_arr.length);
+    fs.readFile('mainInvoice.csv',function (err, inv_data) {
 
-  //Convert and store csv information into a buffer. 
-  bufferString = data.toString(); 
+      if (err) {
+        return console.log(err);
+      }
+      bufferString = inv_data.toString(); 
+      var inv_arr = bufferString.split('\n'); 
+      var inv_col = ans_arr[0].split(',');
+      inv_arr = inv_arr.slice(1, inv_arr.length)
 
-  //Store information for each individual person in an array index. Split it by every newline in the csv file. 
-  arr = bufferString.split('\n'); 
+      // var filler_arr = 
+    
+    });
 
-//   for (i = 0; i < arr.length; i++) { 
-//     JSON.stringify(arr[i]); 
-//   }
-
-//   var obj = JSON.parse(arr);
+    
+    // var main_obj = 
   
-  console.log(arr[0]);
-  
-});
+  });
 }
 
 csvHandler()

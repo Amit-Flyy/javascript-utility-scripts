@@ -1,8 +1,9 @@
 var fs = require('fs');
 const { get } = require('http');
-var main_arr = [], csv_obj = {}, sls, listval = [], prev, max_row = 0, i, line_item = 1001;
-
-var plans = ['Avail-Finance-ARE', 'Enterprise-Plan-For-Existing', 'Enterprise-With-Former-Pricing', 'Kotak-retention-plan-MPU-based', 'Moms-Presso-MyMoCard-INR-Monthly']
+var main_arr = [], csv_obj = {}, sls, listval = [], prev, max_row = 0, i, line_item_id = 1001, qu;
+var company_item_id = {}
+var plans = ['Avail-Finance-ARE', 'Kotak-retention-plan-MPU-based', 'Moms-Presso-MyMoCard-INR-Monthly']
+// var plans = ['Avail-Finance-ARE', 'Enterprise-Plan-For-Existing', 'Enterprise-With-Former-Pricing', 'Kotak-retention-plan-MPU-based', 'Moms-Presso-MyMoCard-INR-Monthly']
 var thisObj = {
     'medcords': 0,
     'mintpro': 1,
@@ -33,7 +34,19 @@ function getObjKey(obj, value) {
     return Object.keys(obj).find(key => obj[key] === value);
 }
 
+function set_line_item_vals(obj, i, listval, def = true) {
+    obj[`line_items[id][${i}]`]=listval[0]
+    obj[`line_items[entity_type][${i}]`]= listval[1]
+    obj[`line_items[entity_id][${i}]`]=listval[2], 
+    obj[`line_items[description][${i}]`]=listval[3], 
+    obj[`line_items[date_from][${i}]`] = listval[4];
+    obj[`line_items[date_to][${i}]`] = listval[5];
+    obj[`line_items[quantity][${i}]`]=listval[6],
+    obj[`line_items[amount][${i}]`]=listval[7]
+}
+
 function set_item_vals(obj, i, listval) {
+    // if(!listval[0] && listval[0] !== '') console.log(obj, listval);
     obj[`line_item_tiers[line_item_id][${i}]`]=listval[0]
     obj[`line_item_tiers[starting_unit][${i}]`]=listval[1]
     obj[`line_item_tiers[ending_unit][${i}]`]=listval[2], 
@@ -59,27 +72,52 @@ const objectToCsv = function (data) {
     return csvRows.join('\n');
 };
 
-fs.readFile((process.env.FILE || "user")+'.json', 'utf-8', async (err, data) => {
+fs.readFile((process.env.FILE || "users")+'.json', 'utf-8', async (err, data) => {
     sls = await JSON.parse(data.toString());
-    
+    // console.log(sls);
     sls.forEach(row => {
         csv_obj = {}
         i = 0, j = 0;
         prev = null;
-        let col = [];
-
         csv_obj["name"] = row.name;
         const itmq = row.items_with_mq;
         // console.log(row);
 
+        for (let idx = 0; idx < row.details.subscription_items.length; idx++) {
+            // break
+            const item = row.details.subscription_items[idx];
+            company_item_id[row.name + item.item_price_id] = line_item_id
+            if (item.item_type == 'plan') {
+                qu = item.metered_quantity ? parseInt(item.metered_quantity) : " "
+                // console.log(qu);
+                if (!item.unit_price && item.unit_price !== 0) console.log('broken -->', row.name, row.details, qu);
+                listval = [line_item_id, "plan", item.item_price_id, "HSN CODE: 997331", "", "", qu, item.unit_price];
+                line_item_id += 1;
+            } else {                
+                if(!parseInt(item.metered_quantity)) console.log(item);
+                // console.log();
+                listval = [line_item_id, "addon", item.item_price_id, "HSN CODE: 997331", "", "", parseInt(item.metered_quantity), item.unit_price];
+                line_item_id += 1;
+            }
+            set_line_item_vals(csv_obj, i, listval);
+            
+            if((i + 1) > max_row) max_row = (i + 1)
+            i += 1;
+        }
+        
+        for (let idx = i; idx <= 4; idx++) {
+            set_line_item_vals(csv_obj, idx, ["","","","","","","", ""])            
+        }
+        // console.log(company_item_id);
+        i = 0, j = 0;
         for (let idx = 0; idx < row.item_tiers.length; idx++) {
             const tier = row.item_tiers[idx];
             // console.log(plans, tier.item_price_id, plans.includes(tier.item_price_id));
             if (plans.includes(tier.item_price_id)) {
                 // console.log(tier.item_price_id);
                 
-                listval = [line_item_id[j], tier.starting_unit, tier.ending_unit?? "", itmq[tier.item_price_id], tier.price];
-            } else if(i == 0) {
+                listval = [company_item_id[row.name + tier.item_price_id], tier.starting_unit, tier.ending_unit?? "", itmq[tier.item_price_id], tier.price];
+            } else if(i == -2321) {
                 let plan = getObjKey(itmq, 0);
                 // console.log(plan);
                 // console.log({tier});
@@ -87,12 +125,12 @@ fs.readFile((process.env.FILE || "user")+'.json', 'utf-8', async (err, data) => 
                 if(!plan) {
                     console.log({itmq}, {row});
                 }
-                listval = [line_item_id[j], "", "", "", ""];                
+                listval = [company_item_id[row.name + tier.item_price_id], "", "", "", ""];                
             } else {
                 j = prev != tier.item_price_id? j + 1: j; 
                 prev = prev != tier.item_price_id? tier.item_price_id : prev;
 
-                listval = [line_item_id[j], tier.starting_unit, tier.ending_unit?? "", itmq[tier.item_price_id], tier.price];
+                listval = [company_item_id[row.name + tier.item_price_id], tier.starting_unit, tier.ending_unit?? "", itmq[tier.item_price_id], tier.price];
             }
             set_item_vals(csv_obj, i, listval);
             if(i > max_row) max_row = i
@@ -110,21 +148,21 @@ fs.readFile((process.env.FILE || "user")+'.json', 'utf-8', async (err, data) => 
     main_arr.sort((a,b) => (thisObj[a.name] > thisObj[b.name] ? 1 : -1))
     main_arr.forEach(obj => console.log(obj.name))
     var dataToWrite = objectToCsv(main_arr)
-    fs.writeFile('resultant.csv', dataToWrite, 'utf8', function (err) {
+    fs.writeFile('new_test.csv', dataToWrite, 'utf8', function (err) {
         if (err) {
           console.log('Some error occured - file either not saved or corrupted file saved.');
         } else{
           console.log('It\'s saved!');
         }
       });
-      var newData = objectToCsv(main_arr.slice(3))
-      fs.writeFile('sample.csv', newData, 'utf8', function (err) {
-          if (err) {
-            console.log('Some error occured - file either not saved or corrupted file saved.');
-          } else{
-            console.log('It\'s saved!');
-          }
-        });
+    //   var newData = objectToCsv(main_arr.slice(3))
+    //   fs.writeFile('sample.csv', newData, 'utf8', function (err) {
+    //       if (err) {
+    //         console.log('Some error occured - file either not saved or corrupted file saved.');
+    //       } else{
+    //         console.log('It\'s saved!');
+    //       }
+    //     });
       
     // console.log({main_arr});
     // main_arr.forEach(item => console.log(item.name, '--->', Object.keys(item).length, `\t\ti: ${i},\t i x 5 = ${i * 5}`))

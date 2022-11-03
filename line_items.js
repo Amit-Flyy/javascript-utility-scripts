@@ -1,6 +1,6 @@
 // line_items[id][1]	line_items[entity_type][1]	line_items[entity_id][1]	line_items[description][1]	line_items[date_from][1]	line_items[date_to][1]	line_items[quantity][1]	line_items[amount][1]
 var fs = require('fs');
-var main_arr = [], csv_obj = {}, sls, listval = [], prev, max_row = 0, i;
+var main_arr = [], csv_obj = {}, sls, listval = [], prev, max_row = 0, i, line_item_id = 1001, qu;
 
 var plans = ['Avail-Finance-ARE', 'Enterprise-Plan-For-Existing', 'Enterprise-With-Former-Pricing', 'Kotak-retention-plan-MPU-based', 'Moms-Presso-MyMoCard-INR-Monthly']
 
@@ -46,7 +46,6 @@ fs.readFile((process.env.FILE || "file")+'.json', 'utf-8', async (err, data) => 
         i = 0, j = 0;
         prev = null;
         let col = [];
-        let line_item_id = [1005, 1006, 1007, 1008, 1009, 1010];
         csv_obj["name"] = row.name;
         // console.log(row.details.subscription_addons);
 
@@ -54,10 +53,13 @@ fs.readFile((process.env.FILE || "file")+'.json', 'utf-8', async (err, data) => 
             // break
             const item = row.details.subscription_addons[idx];
             if (item.item_type == 'plan') {
-                continue;
+                qu = item.metered_quantity ? parseInt(item.metered_quantity) : ''
+                listval = [line_item_id, "plan", item.item_price_id, "HSN CODE: 997331", "", "", qu, item.price];
+                line_item_id += 1;
             } else {                
                 if(!parseInt(item.metered_quantity)) console.log(item);
-                listval = [line_item_id[i], "addon", item.item_price_id, "HSN CODE: 997331", `EDATE(F${i+2}, -1)`, `EOMONTH(CG${i+2}, 0)`,parseInt(item.metered_quantity), item.price];
+                listval = [line_item_id, "addon", item.item_price_id, "HSN CODE: 997331", "", "", parseInt(item.metered_quantity), item.price];
+                line_item_id += 1;
             }
             set_item_vals(csv_obj, i + 1, listval);
             if((i + 1) > max_row) max_row = (i + 1)
